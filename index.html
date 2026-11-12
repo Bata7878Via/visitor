@@ -96,7 +96,6 @@
       gap: 8px;
     }
 
-    /* Indikator Pulse Hijau untuk User Online */
     .pulse-dot {
       width: 10px;
       height: 10px;
@@ -197,17 +196,18 @@
 
   <script>
     /**
-     * Client Configuration & State
+     * Konfigurasi & State
      */
     const CONFIG = {
-      // GANTI URL DI BAWAH DENGAN URL DEPLOYMENT GOOGLE APPS SCRIPT ANDA
+      // GANTI URL INI DENGAN URL DEPLOYMENT GOOGLE APPS SCRIPT ANDA
       API_URL: 'https://script.google.com/macros/s/AKfycbzJR292m3sMijdfqaD8MLkYNNkCehOFchqsGRupxGRvucG7ElwPzP0_hoeFzLK2wEyQ5Q/exec',
-      PING_INTERVAL_MS: 20000 // Interval heartbeat: 20 detik
+      PING_INTERVAL_MS: 10000 // Dipercepat menjadi 10 detik agar pembaruan data sangat responsif
     };
 
     const STATE = {
       sessionId: null,
-      isInitialSync: true
+      isInitialSync: true,
+      timerId: null
     };
 
     // DOM Elements Cache
@@ -217,12 +217,12 @@
     const elLastSyncTime = document.getElementById('last-sync-time');
 
     /**
-     * Mengambil atau membuat unique identifier sesi peramban
+     * Manajemen Unique Session ID di sessionStorage
      */
     function getOrCreateSessionId() {
       let currentSession = sessionStorage.getItem('app_visitor_session_id');
       if (!currentSession) {
-        currentSession = 'sess_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now();
+        currentSession = 'sess_' + Math.random().toString(36).substring(2, 12) + '_' + Date.now();
         sessionStorage.setItem('app_visitor_session_id', currentSession);
         STATE.isInitialSync = true;
       } else {
@@ -232,7 +232,7 @@
     }
 
     /**
-     * Memperbarui visual antarmuka
+     * Perbarui data antarmuka
      */
     function updateUI(data) {
       elOnlineCount.textContent = Number(data.onlineUsers).toLocaleString('id-ID');
@@ -246,7 +246,7 @@
     }
 
     /**
-     * Menangani kondisi error koneksi
+     * Tampilan status saat error
      */
     function handleUIError(message) {
       elSyncStatus.className = 'status-badge error';
@@ -254,16 +254,16 @@
     }
 
     /**
-     * Mengirim request ke Backend Google Apps Script
+     * Mengirim request via fetch (GET)
      */
     async function syncVisitorData(actionType) {
       try {
         const queryParams = new URLSearchParams({
           action: actionType,
-          sessionId: STATE.sessionId
+          sessionId: STATE.sessionId,
+          _nocache: Date.now() // Mencegah cache browser
         });
 
-        // Request data via GET method untuk menghindari batasan CORS Preflight Apps Script
         const response = await fetch(`${CONFIG.API_URL}?${queryParams.toString()}`, {
           method: 'GET',
           redirect: 'follow'
@@ -288,23 +288,47 @@
     }
 
     /**
-     * Siklus Hidup Pelacak (Lifecycle Tracker)
+     * Menembakkan sinyal keluar seketika saat user menutup tab / browser
+     */
+    function sendLeaveBeacon() {
+      if (!STATE.sessionId) return;
+
+      const leaveUrl = `${CONFIG.API_URL}?action=leave&sessionId=${encodeURIComponent(STATE.sessionId)}`;
+
+      // Gunakan navigator.sendBeacon jika didukung (standar terbaik untuk proses penutupan halaman)
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(leaveUrl);
+      } else {
+        // Fallback jika browser lama
+        fetch(leaveUrl, { method: 'POST', keepalive: true, mode: 'no-cors' });
+      }
+    }
+
+    /**
+     * Siklus Hidup Pelacak
      */
     function initTracker() {
       STATE.sessionId = getOrCreateSessionId();
 
-      // Jika kunjungan baru, trigger 'init' untuk menaikkan total kunjungan.
-      // Jika refresh tab yang sama, cukup kirim 'ping'.
       const initialAction = STATE.isInitialSync ? 'init' : 'ping';
       syncVisitorData(initialAction);
 
-      // Jalankan heartbeat berkala untuk menjaga status online
-      setInterval(() => {
+      // Heartbeat berkala setiap 10 detik
+      STATE.timerId = setInterval(() => {
         syncVisitorData('ping');
       }, CONFIG.PING_INTERVAL_MS);
+
+      // 1. Tangani event saat tab/browser benar-benar ditutup
+      window.addEventListener('pagehide', sendLeaveBeacon);
+
+      // 2. Jika user kembali ke tab ini dari tab lain, langsung sinkronkan seketika tanpa menunggu timer
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          syncVisitorData('ping');
+        }
+      });
     }
 
-    // Jalankan tracker setelah DOM selesai di-render
     window.addEventListener('DOMContentLoaded', initTracker);
   </script>
 </body>
