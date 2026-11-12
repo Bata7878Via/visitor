@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Realtime Visitor Analytics</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --border-color: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #38bdf8;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    header {
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-title {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--text-main);
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    /* Indikator Pulse Hijau untuk User Online */
+    .pulse-dot {
+      width: 10px;
+      height: 10px;
+      background-color: var(--success);
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+      }
+      70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+      }
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+      }
+    }
+
+    .footer-bar {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+    }
+
+    .status-badge.connected { color: var(--success); }
+    .status-badge.syncing { color: var(--warning); }
+    .status-badge.error { color: var(--danger); }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>Website Traffic Dashboard</h1>
+      <p>Data real-time disinkronkan langsung via Google Apps Script & Google Sheets</p>
+    </header>
+
+    <main class="grid">
+      <!-- Card: Sedang Online -->
+      <section class="card">
+        <div class="card-title">
+          <span>Sedang Online</span>
+          <span class="pulse-dot" id="pulse-indicator" title="Live Connection"></span>
+        </div>
+        <div class="card-value">
+          <span id="online-count">--</span>
+          <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">user</span>
+        </div>
+      </section>
+
+      <!-- Card: Total Kunjungan -->
+      <section class="card">
+        <div class="card-title">
+          <span>Total Kunjungan</span>
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color: var(--primary);">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          </svg>
+        </div>
+        <div class="card-value">
+          <span id="total-count">--</span>
+          <span style="font-size: 1rem; color: var(--text-muted); font-weight: normal;">views</span>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer-bar">
+      <div>
+        Status: <span id="sync-status" class="status-badge syncing">Menghubungkan...</span>
+      </div>
+      <div>
+        Sinkronisasi Terakhir: <span id="last-sync-time">-</span>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    /**
+     * Client Configuration & State
+     */
+    const CONFIG = {
+      // GANTI URL DI BAWAH DENGAN URL DEPLOYMENT GOOGLE APPS SCRIPT ANDA
+      API_URL: 'https://script.google.com/macros/s/AKfycby5hTf1W_X_SAMPLE_REPLACE_ME/exec',
+      PING_INTERVAL_MS: 20000 // Interval heartbeat: 20 detik
+    };
+
+    const STATE = {
+      sessionId: null,
+      isInitialSync: true
+    };
+
+    // DOM Elements Cache
+    const elOnlineCount = document.getElementById('online-count');
+    const elTotalCount = document.getElementById('total-count');
+    const elSyncStatus = document.getElementById('sync-status');
+    const elLastSyncTime = document.getElementById('last-sync-time');
+
+    /**
+     * Mengambil atau membuat unique identifier sesi peramban
+     */
+    function getOrCreateSessionId() {
+      let currentSession = sessionStorage.getItem('app_visitor_session_id');
+      if (!currentSession) {
+        currentSession = 'sess_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now();
+        sessionStorage.setItem('app_visitor_session_id', currentSession);
+        STATE.isInitialSync = true;
+      } else {
+        STATE.isInitialSync = false;
+      }
+      return currentSession;
+    }
+
+    /**
+     * Memperbarui visual antarmuka
+     */
+    function updateUI(data) {
+      elOnlineCount.textContent = Number(data.onlineUsers).toLocaleString('id-ID');
+      elTotalCount.textContent = Number(data.totalVisits).toLocaleString('id-ID');
+      
+      const now = new Date();
+      elLastSyncTime.textContent = now.toLocaleTimeString('id-ID');
+
+      elSyncStatus.className = 'status-badge connected';
+      elSyncStatus.textContent = 'Terhubung';
+    }
+
+    /**
+     * Menangani kondisi error koneksi
+     */
+    function handleUIError(message) {
+      elSyncStatus.className = 'status-badge error';
+      elSyncStatus.textContent = message || 'Gagal Sinkronisasi';
+    }
+
+    /**
+     * Mengirim request ke Backend Google Apps Script
+     */
+    async function syncVisitorData(actionType) {
+      try {
+        const queryParams = new URLSearchParams({
+          action: actionType,
+          sessionId: STATE.sessionId
+        });
+
+        // Request data via GET method untuk menghindari batasan CORS Preflight Apps Script
+        const response = await fetch(`${CONFIG.API_URL}?${queryParams.toString()}`, {
+          method: 'GET',
+          redirect: 'follow'
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP Error: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+          updateUI(result);
+        } else {
+          throw new Error(result.error || 'Server error');
+        }
+
+      } catch (err) {
+        console.error('Visitor sync failed:', err);
+        handleUIError('Koneksi Terputus');
+      }
+    }
+
+    /**
+     * Siklus Hidup Pelacak (Lifecycle Tracker)
+     */
+    function initTracker() {
+      STATE.sessionId = getOrCreateSessionId();
+
+      // Jika kunjungan baru, trigger 'init' untuk menaikkan total kunjungan.
+      // Jika refresh tab yang sama, cukup kirim 'ping'.
+      const initialAction = STATE.isInitialSync ? 'init' : 'ping';
+      syncVisitorData(initialAction);
+
+      // Jalankan heartbeat berkala untuk menjaga status online
+      setInterval(() => {
+        syncVisitorData('ping');
+      }, CONFIG.PING_INTERVAL_MS);
+    }
+
+    // Jalankan tracker setelah DOM selesai di-render
+    window.addEventListener('DOMContentLoaded', initTracker);
+  </script>
+</body>
+</html>
